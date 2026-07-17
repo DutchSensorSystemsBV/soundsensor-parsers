@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSS IoT SoundSensor Payload Parser</title>
+  <style>
+    body {
+      color: #101525;
+      font-family: Arial, sans-serif;
+      line-height: 1.5;
+      margin: 2rem;
+      max-width: 960px;
+    }
+
+    input {
+      box-sizing: border-box;
+      font: inherit;
+      margin: 0.5rem 0;
+      max-width: 100%;
+      padding: 0.5rem;
+      width: 720px;
+    }
+
+    button {
+      font: inherit;
+      padding: 0.5rem 0.75rem;
+    }
+
+    pre {
+      background: #f4f6f8;
+      overflow: auto;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>DSS IoT SoundSensor Payload Parser</h1>
+  <p>This example parses a measurement payload with payload description for DSS IoT SoundSensor firmware 2.0.0.</p>
+
+  <label for="payload">Payload</label>
+  <br>
+  <input id="payload" type="text" value="7fff0f03a13c5a14887405260d0411a46d1e4791d09959d670d0443f1f34966c03118669ae2ab06a">
+  <button id="parse">Parse</button>
+
+  <pre id="result"></pre>
+
+  <script type="module">
+    import { parseMeasurementPayload } from "../src/soundsensor-parser.js";
+
+    const input = document.getElementById("payload");
+    const button = document.getElementById("parse");
+    const result = document.getElementById("result");
+
+    button.addEventListener("click", () => {
+      try {
+        const measurements = parseMeasurementPayload(input.value);
+        result.textContent = JSON.stringify(measurements, null, 2);
+      } catch (error) {
+        result.textContent = error.message;
+      }
+    });
+
+    button.click();
+  </script>
+</body>
+</html>

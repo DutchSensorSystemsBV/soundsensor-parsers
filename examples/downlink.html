@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSS IoT SoundSensor Downlink Example</title>
+  <style>
+    body {
+      color: #101525;
+      font-family: Arial, sans-serif;
+      line-height: 1.5;
+      margin: 2rem;
+      max-width: 960px;
+    }
+
+    input {
+      box-sizing: border-box;
+      font: inherit;
+      margin: 0.5rem 0;
+      max-width: 100%;
+      padding: 0.5rem;
+      width: 420px;
+    }
+
+    button {
+      font: inherit;
+      padding: 0.5rem 0.75rem;
+    }
+
+    pre {
+      background: #f4f6f8;
+      overflow: auto;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>DSS IoT SoundSensor Downlink Example</h1>
+  <p>This example parses a settings response payload and composes a settings downlink payload.</p>
+
+  <label for="payload">Settings response payload</label>
+  <br>
+  <input id="payload" type="text" value="800000ea600100fff6020036ee80">
+  <button id="parse">Parse</button>
+
+  <h2>Parsed Settings</h2>
+  <pre id="parsed"></pre>
+
+  <h2>Composed Downlink</h2>
+  <pre id="composed"></pre>
+
+  <script type="module">
+    import {
+      calculateSettingsCrc,
+      composeSettingsPayload,
+      parseSettingsPayload
+    } from "../src/soundsensor-downlink.js";
+
+    const input = document.getElementById("payload");
+    const button = document.getElementById("parse");
+    const parsed = document.getElementById("parsed");
+    const composed = document.getElementById("composed");
+
+    button.addEventListener("click", () => {
+      try {
+        const settings = parseSettingsPayload(input.value);
+        const payload = composeSettingsPayload(settings);
+        const crc = calculateSettingsCrc(settings);
+
+        parsed.textContent = JSON.stringify(settings, null, 2);
+        composed.textContent = JSON.stringify({ payload, crc }, null, 2);
+      } catch (error) {
+        parsed.textContent = error.message;
+        composed.textContent = "";
+      }
+    });
+
+    button.click();
+  </script>
+</body>
+</html>
