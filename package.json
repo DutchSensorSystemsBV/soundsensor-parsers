@@ -5,6 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "serve": "node tools/serve.mjs",
     "test": "node test/examples.test.js"
   },
   "keywords": [

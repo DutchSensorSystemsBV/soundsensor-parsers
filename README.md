@@ -33,8 +33,15 @@ Serve this folder with any static web server and open one of the HTML files in t
 For example:
 
 ```sh
-npx serve .
+npm run serve
 ```
+
+Then open:
+
+- `http://localhost:8080/examples/uplink.html`
+- `http://localhost:8080/examples/downlink.html`
+
+Opening the HTML files directly from disk can cause browser CORS errors because the examples import JavaScript modules from `src`.
 
 ## Uplink Example
 
