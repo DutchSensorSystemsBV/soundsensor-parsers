@@ -1,24 +1,34 @@
-# DSS IoT SoundSensor JavaScript Examples
+# DSS Ranos SoundSensor Parsers
 
-JavaScript examples for parsing DSS IoT SoundSensor LoRa payloads and composing or validating settings/downlink messages.
+JavaScript examples for parsing DSS Ranos SoundSensor LoRaWAN uplinks and composing settings downlinks.
 
-These examples are intended for DSS IoT SoundSensor firmware version 2.0.0.
+These examples are intended for DSS Ranos SoundSensor firmware version 2.0.0.
 
 ## Contents
 
-- `src/soundsensor-parser.js` - Parses measurement payloads with payload description.
-- `src/soundsensor-downlink.js` - Parses settings responses, composes settings downlinks, and calculates ACK CRC values.
-- `examples/parser.html` - Browser example for measurement payload parsing.
+- `src/index.js` - Public entrypoint for the parser functions.
+- `src/uplink.js` - Decodes measurement uplinks with payload description.
+- `src/downlink.js` - Parses settings responses, composes settings downlinks, and validates ACK payloads.
+- `examples/uplink.html` - Browser example for measurement uplink parsing.
 - `examples/downlink.html` - Browser example for settings payload parsing and downlink payload composition.
+- `test/examples.test.js` - Node.js smoke tests for the sample payloads.
+
+## Install
+
+No package installation is required. The source files are plain JavaScript ES modules.
+
+To run the smoke tests:
+
+```sh
+npm test
+```
 
 ## Browser Usage
 
 Serve this folder with any static web server and open one of the HTML files in the `examples` folder:
 
-- `examples/parser.html`
+- `examples/uplink.html`
 - `examples/downlink.html`
-
-The examples use plain JavaScript modules and do not require a build step.
 
 For example:
 
@@ -26,12 +36,14 @@ For example:
 npx serve .
 ```
 
-## Parser Example
+## Uplink Example
+
+Use `decodeUplink` for measurement payloads sent from the sensor to the LoRaWAN network.
 
 ```js
-import { parseMeasurementPayload } from "./src/soundsensor-parser.js";
+import { decodeUplink } from "./src/index.js";
 
-const measurements = parseMeasurementPayload(
+const measurements = decodeUplink(
   "7fff0f03a13c5a14887405260d0411a46d1e4791d09959d670d0443f1f34966c03118669ae2ab06a"
 );
 
@@ -40,42 +52,39 @@ console.log(measurements);
 
 ## Downlink Example
 
+Use `composeSettingsPayload` to create a settings payload that can be sent to the sensor through your LoRaWAN provider.
+
 ```js
-import { composeSettingsPayload, calculateSettingsCrc } from "./src/soundsensor-downlink.js";
+import {
+  calculateSettingsCrc,
+  composeSettingsPayload,
+  parseSettingsPayload
+} from "./src/index.js";
 
-const settings = {
-  transmitInterval: 60000,
-  sampleCount: 1,
-  correction: 0,
-  useDBAf: true,
-  useDBAs: true,
-  useDBCf: true,
-  useDBCs: true,
-  useLeqA: true,
-  useLeqC: true,
-  usePositivePeakHoldA: true,
-  usePositivePeakHoldC: true,
-  useNegativePeakHoldA: true,
-  useNegativePeakHoldC: true,
-  useBat: true,
-  useFirstTimestamp: true,
-  useLastTimestamp: true,
-  useMsgInfo: true,
-  enableLed: true,
-  enableHeadphone: false,
-  gpsMode: 2,
-  gpsInterval: 3600000
-};
-
+const settings = parseSettingsPayload("800000ea600100fff6020036ee80");
 const payload = composeSettingsPayload(settings);
 const crc = calculateSettingsCrc(settings);
 
 console.log(payload, crc);
 ```
 
+## Settings Request Example
+
+Use `composeSettingsRequestPayload` to request the current settings from the sensor.
+
+```js
+import { composeSettingsRequestPayload } from "./src/index.js";
+
+const payload = composeSettingsRequestPayload();
+
+console.log(payload); // "04"
+```
+
 ## Notes
 
-- Provider-specific downlink transmission differs per LoRa network provider. This repository only contains generic payload examples.
+- Uplinks are messages from the sensor to the LoRaWAN network.
+- Downlinks are messages from the LoRaWAN network to the sensor.
+- Provider-specific downlink transmission differs per LoRaWAN network provider. This repository only contains generic payload examples.
 - Do not commit real device credentials, AppKeys, AS keys, access tokens, or customer data.
 - Timestamp parsing uses the current UTC date because the sensor timestamp format only contains time-of-day fields.
 

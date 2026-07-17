@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DSS IoT SoundSensor Downlink Example</title>
+  <title>DSS Ranos SoundSensor Downlink Example</title>
   <style>
     body {
       color: #101525;
@@ -35,7 +35,7 @@
   </style>
 </head>
 <body>
-  <h1>DSS IoT SoundSensor Downlink Example</h1>
+  <h1>DSS Ranos SoundSensor Downlink Example</h1>
   <p>This example parses a settings response payload and composes a settings downlink payload.</p>
 
   <label for="payload">Settings response payload</label>
@@ -54,7 +54,7 @@
       calculateSettingsCrc,
       composeSettingsPayload,
       parseSettingsPayload
-    } from "../src/soundsensor-downlink.js";
+    } from "../src/index.js";
 
     const input = document.getElementById("payload");
     const button = document.getElementById("parse");

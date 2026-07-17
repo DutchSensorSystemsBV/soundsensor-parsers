@@ -1,36 +1,49 @@
-const SETTINGS_RESPONSE = 0x02;
+const MESSAGE_TYPE_SETTINGS_DOWNLINK = 0x02;
+const MESSAGE_TYPE_SETTINGS_RESPONSE = 0x02;
+const MESSAGE_TYPE_ACK = 0xc0;
+const CRC_INITIAL_VALUE = 0xffff;
+const CRC_POLYNOMIAL = 0x8005;
 
-export function parseSettingsPayload(hexPayload) {
-  const payload = hexToBytes(hexPayload);
+export const GPS_MODES = Object.freeze({
+  OFF: 0,
+  ONCE: 1,
+  INTERVAL: 2
+});
+
+export function parseSettingsPayload(input) {
+  const payload = normalizePayloadInput(input);
+
   if (payload.length !== 14) {
     throw new Error("Settings payload must contain exactly 14 bytes.");
   }
 
   const messageType = payload[0] >> 6;
-  if (messageType !== SETTINGS_RESPONSE) {
-    throw new Error(`Unsupported message type: ${messageType}. This parser expects a settings response payload.`);
+  if (messageType !== MESSAGE_TYPE_SETTINGS_RESPONSE) {
+    throw new Error(
+      `Unsupported message type: ${messageType}. This parser expects a settings response payload.`
+    );
   }
 
   return {
     transmitInterval: readUInt32(payload, 1),
     sampleCount: payload[5],
-    correction: ((payload[6] & 127) - (payload[6] & 128)) / 10,
-    useDBAf: (payload[7] & 0x80) !== 0,
-    useDBAs: (payload[7] & 0x40) !== 0,
-    useDBCf: (payload[7] & 0x20) !== 0,
-    useDBCs: (payload[7] & 0x10) !== 0,
-    useLeqA: (payload[7] & 0x08) !== 0,
-    useLeqC: (payload[7] & 0x04) !== 0,
-    usePositivePeakHoldA: (payload[7] & 0x02) !== 0,
-    usePositivePeakHoldC: (payload[7] & 0x01) !== 0,
-    useNegativePeakHoldA: (payload[8] & 0x80) !== 0,
-    useNegativePeakHoldC: (payload[8] & 0x40) !== 0,
-    useBat: (payload[8] & 0x20) !== 0,
-    useFirstTimestamp: (payload[8] & 0x10) !== 0,
-    useLastTimestamp: (payload[8] & 0x08) !== 0,
-    useMsgInfo: (payload[8] & 0x04) !== 0,
-    enableLed: (payload[8] & 0x02) !== 0,
-    enableHeadphone: (payload[8] & 0x01) !== 0,
+    correction: decodeSignedDecimal(payload[6]),
+    useDBAf: hasBit(payload[7], 7),
+    useDBAs: hasBit(payload[7], 6),
+    useDBCf: hasBit(payload[7], 5),
+    useDBCs: hasBit(payload[7], 4),
+    useLeqA: hasBit(payload[7], 3),
+    useLeqC: hasBit(payload[7], 2),
+    usePositivePeakHoldA: hasBit(payload[7], 1),
+    usePositivePeakHoldC: hasBit(payload[7], 0),
+    useNegativePeakHoldA: hasBit(payload[8], 7),
+    useNegativePeakHoldC: hasBit(payload[8], 6),
+    useBat: hasBit(payload[8], 5),
+    useFirstTimestamp: hasBit(payload[8], 4),
+    useLastTimestamp: hasBit(payload[8], 3),
+    useMsgInfo: hasBit(payload[8], 2),
+    enableLed: hasBit(payload[8], 1),
+    enableHeadphone: hasBit(payload[8], 0),
     gpsMode: payload[9],
     gpsInterval: readUInt32(payload, 10)
   };
@@ -39,13 +52,12 @@ export function parseSettingsPayload(hexPayload) {
 export function composeSettingsPayload(settings) {
   validateSettings(settings);
 
-  const correction = Math.round(settings.correction * 10);
   const payload = new Uint8Array(14);
 
-  payload[0] = 0x02;
+  payload[0] = MESSAGE_TYPE_SETTINGS_DOWNLINK;
   writeUInt32(payload, 1, settings.transmitInterval);
   payload[5] = settings.sampleCount;
-  payload[6] = (correction & 127) - (correction & 128);
+  payload[6] = encodeSignedDecimal(settings.correction);
   payload[7] =
     boolBit(settings.useDBAf, 7) |
     boolBit(settings.useDBAs, 6) |
@@ -70,14 +82,20 @@ export function composeSettingsPayload(settings) {
   return bytesToHex(payload);
 }
 
+export function composeSettingsRequestPayload() {
+  return "04";
+}
+
 export function calculateSettingsCrc(settings) {
   const settingsPayload = hexToBytes(composeSettingsPayload(settings));
+
   return calculateCrc(settingsPayload.slice(1));
 }
 
-export function validateAckPayload(hexAckPayload, settings) {
-  const payload = hexToBytes(hexAckPayload);
-  if (payload.length !== 3 || payload[0] !== 0xc0) {
+export function validateAckPayload(ackPayload, settings) {
+  const payload = normalizePayloadInput(ackPayload);
+
+  if (payload.length !== 3 || payload[0] !== MESSAGE_TYPE_ACK) {
     throw new Error("ACK payload must contain message type 0xC0 followed by two CRC bytes.");
   }
 
@@ -92,9 +110,10 @@ export function validateAckPayload(hexAckPayload, settings) {
 }
 
 export function calculateCrc(bytes) {
-  let crc = 0xffff;
+  let crc = CRC_INITIAL_VALUE;
+
   for (const value of bytes) {
-    crc = crcUpdate(crc, value);
+    crc = updateCrc(crc, value);
   }
 
   return crc & 0xffff;
@@ -128,12 +147,16 @@ function validateSettings(settings) {
   if (!Number.isFinite(settings.correction) || settings.correction < -6 || settings.correction > 6) {
     throw new Error("correction must be between -6.0 and 6.0.");
   }
-  if (![0, 1, 2].includes(settings.gpsMode)) {
+  if (![GPS_MODES.OFF, GPS_MODES.ONCE, GPS_MODES.INTERVAL].includes(settings.gpsMode)) {
     throw new Error("gpsMode must be 0 (OFF), 1 (ONCE), or 2 (INTERVAL).");
   }
   if (!Number.isInteger(settings.gpsInterval) || settings.gpsInterval < 3600000 || settings.gpsInterval > 43200000) {
     throw new Error("gpsInterval must be an integer between 3600000 and 43200000 milliseconds.");
   }
+}
+
+function normalizePayloadInput(input) {
+  return typeof input === "string" ? hexToBytes(input) : Array.from(input);
 }
 
 function readUInt32(payload, index) {
@@ -152,19 +175,31 @@ function writeUInt32(payload, index, value) {
   payload[index + 3] = value & 0xff;
 }
 
+function decodeSignedDecimal(value) {
+  return ((value & 127) - (value & 128)) / 10;
+}
+
+function encodeSignedDecimal(value) {
+  const scaledValue = Math.round(value * 10);
+
+  return (scaledValue & 127) - (scaledValue & 128);
+}
+
+function hasBit(value, shift) {
+  return (value & (1 << shift)) !== 0;
+}
+
 function boolBit(value, shift) {
   return value ? 1 << shift : 0;
 }
 
-function crcUpdate(crc, data) {
-  crc = crc ^ (data << 8);
+function updateCrc(crc, data) {
+  crc ^= data << 8;
 
   for (let index = 0; index < 8; index++) {
-    if (crc & 0x8000) {
-      crc = (crc << 1) ^ 0x8005;
-    } else {
-      crc <<= 1;
-    }
+    crc = crc & 0x8000
+      ? (crc << 1) ^ CRC_POLYNOMIAL
+      : crc << 1;
   }
 
   return crc;

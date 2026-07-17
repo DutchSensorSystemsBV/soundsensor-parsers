@@ -1,0 +1,19 @@
+{
+  "name": "@dss/ranos-parsers",
+  "version": "1.0.0",
+  "description": "JavaScript examples for parsing DSS Ranos IoT SoundSensor LoRa uplinks and composing downlink messages.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node test/examples.test.js"
+  },
+  "keywords": [
+    "dss",
+    "ranos",
+    "iot",
+    "soundsensor",
+    "lorawan",
+    "payload-parser"
+  ],
+  "license": "MIT"
+}
